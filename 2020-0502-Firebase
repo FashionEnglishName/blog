@@ -1,0 +1,97 @@
+# Firebase
+
+### Authentication
+
+First set the login method you need from the **Auth** tab. Then refer to doc to complete code. 
+
+It's easy. In a word, we create a provider based on the login method we choose before. Send the provider to  a `firebase.auth().signIn...(pop or current window)` to login. If you choose email authentication, firebase will detect it's a sign in or a register for you automatically.
+
+After login, you can use get the logged in user by `firebase.auth().currentUser`. Most commonly used attributes are `displayName` and `uid`.
+
+Logout using `firebase.auth().signOut()`
+
+### Collections
+
+Add item. `add` function returns a promise with item ID.
+
+```javascript
+firebase.firestore().collection('...').add({
+  
+}).catch(console.error);
+```
+
+Get one document
+
+```javascript
+firebase.firestore().collection("...").doc(id)
+	.set({'name': 'md'})    // add something or update to the document
+```
+
+Get multiple items like this.
+
+```javascript
+const query = firebase.firestore().collection("...")
+              .orderBy('..', 'desc')
+              .where("name", "=", "md")
+              .limit(12)
+```
+
+Iterate all documents. onSnapshot returns an unsubscribe handler. You can unsubscribe the `onSnapshot` event by calling that.
+
+```javascript
+const unsubscribe = query.onSnapshot(snap => {
+	snap.forEach(...) // same as snap.doc.forEach(...)
+});
+
+unsubscribe();
+```
+
+You can only iterate documents that have been changed.
+
+```javascript
+query.onSnapshot(snap => {
+	snap.docChanges().forEach(...)
+});
+```
+
+### Rules
+
+read this and you will figure it out.
+
+`request.auth.token` contains user information ([check this](https://firebase.google.com/docs/reference/rules/rules.firestore.Request)) except user id. User Id can be got from `request.auth.uid`.
+
+`request.resourse` contains the document you are sending to server. `resourse` contains documents that has been store in database.
+
+{} in `match` line indicates a variable
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // This rule allows anyone on the internet to view, edit, and delete
+    // all data in your Firestore database. It is useful for getting
+    // started, but it is configured to expire after 30 days because it
+    // leaves your app open to attackers. At that time, all client
+    // requests to your Firestore database will be denied.
+    //
+    // Make sure to write security rules for your app before that time, or else
+    // your app will lose access to your Firestore database
+    match /messages/{messageId} {
+    	allow read;
+      allow create, update: if request.auth.token.name == request.resource.data.name
+      	&& request.resource.data.text is string
+        && request.resource.data.text.size() <= 300
+        || request.resource.data.imageUrl is string
+        && request.resource.data.imageUrl.matches("https?://.*");
+      allow delete: if false;
+    }
+    
+    match /fcmTokens/{token} {
+    	allow read: if false;
+      allow write;
+    }
+  }
+}
+```
+
